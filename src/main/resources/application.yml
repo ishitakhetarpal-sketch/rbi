@@ -1,6 +1,11 @@
 spring:
   application:
     name: loan-evaluation-service
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
   datasource:
     url: jdbc:h2:mem:loandb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -20,9 +25,45 @@ spring:
 
 server:
   port: 8080
+  shutdown: graceful
   error:
     include-message: always
     include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus, env, loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    git:
+      mode: full
+    build:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s
+  observations:
+    key-values:
+      service: ${spring.application.name}
 
 springdoc:
   api-docs:
@@ -36,6 +77,8 @@ logging:
   level:
     root: INFO
     com.rbihub.loan: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
 
 lending:
   base-interest-rate: 12.00
