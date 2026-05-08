@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.matchesRegex;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,6 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class LoanApplicationControllerTest {
+
+    private static final String UUID_REGEX = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
     @Autowired
     private MockMvc mockMvc;
@@ -27,18 +31,7 @@ class LoanApplicationControllerTest {
 
     @Test
     void approvesAValidApplication() throws Exception {
-        Map<String, Object> body = Map.of(
-                "applicant", Map.of(
-                        "name", "Asha",
-                        "age", 30,
-                        "monthlyIncome", 75000,
-                        "employmentType", "SALARIED",
-                        "creditScore", 780),
-                "loan", Map.of(
-                        "amount", 500000,
-                        "tenureMonths", 36,
-                        "purpose", "PERSONAL")
-        );
+        Map<String, Object> body = validRequest();
 
         mockMvc.perform(post("/applications")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -58,16 +51,9 @@ class LoanApplicationControllerTest {
     void rejectsLowCreditScore() throws Exception {
         Map<String, Object> body = Map.of(
                 "applicant", Map.of(
-                        "name", "Bob",
-                        "age", 30,
-                        "monthlyIncome", 75000,
-                        "employmentType", "SALARIED",
-                        "creditScore", 580),
-                "loan", Map.of(
-                        "amount", 500000,
-                        "tenureMonths", 36,
-                        "purpose", "PERSONAL")
-        );
+                        "name", "Bob", "age", 30, "monthlyIncome", 75000,
+                        "employmentType", "SALARIED", "creditScore", 580),
+                "loan", Map.of("amount", 500000, "tenureMonths", 36, "purpose", "PERSONAL"));
 
         mockMvc.perform(post("/applications")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,24 +69,23 @@ class LoanApplicationControllerTest {
     void returnsBadRequestForFieldOutOfRange() throws Exception {
         Map<String, Object> body = Map.of(
                 "applicant", Map.of(
-                        "name", "Out Of Range",
-                        "age", 18,
-                        "monthlyIncome", 75000,
-                        "employmentType", "SALARIED",
-                        "creditScore", 780),
-                "loan", Map.of(
-                        "amount", 500000,
-                        "tenureMonths", 36,
-                        "purpose", "PERSONAL")
-        );
+                        "name", "Out Of Range", "age", 18, "monthlyIncome", 75000,
+                        "employmentType", "SALARIED", "creditScore", 780),
+                "loan", Map.of("amount", 500000, "tenureMonths", 36, "purpose", "PERSONAL"));
 
         mockMvc.perform(post("/applications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(body)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.method").value("POST"))
+                .andExpect(jsonPath("$.path").value("/applications"))
+                .andExpect(jsonPath("$.traceId").value(matchesRegex(UUID_REGEX)))
                 .andExpect(jsonPath("$.fieldErrors").isArray())
                 .andExpect(jsonPath("$.fieldErrors[0].field").exists())
+                .andExpect(jsonPath("$.fieldErrors[0].rejectedValue").exists())
                 .andExpect(jsonPath("$.fieldErrors[0].message").exists());
     }
 
@@ -109,11 +94,8 @@ class LoanApplicationControllerTest {
         String body = """
                 {
                   "applicant": {
-                    "name": "X",
-                    "age": 30,
-                    "monthlyIncome": 75000,
-                    "employmentType": "ASTRONAUT",
-                    "creditScore": 780
+                    "name": "X", "age": 30, "monthlyIncome": 75000,
+                    "employmentType": "ASTRONAUT", "creditScore": 780
                   },
                   "loan": { "amount": 500000, "tenureMonths": 36, "purpose": "PERSONAL" }
                 }
@@ -123,6 +105,34 @@ class LoanApplicationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").exists());
+                .andExpect(jsonPath("$.errorCode").value("INVALID_ENUM_VALUE"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("applicant.employmentType"))
+                .andExpect(jsonPath("$.fieldErrors[0].rejectedValue").value("ASTRONAUT"));
+    }
+
+    @Test
+    void returnsBadRequestForMalformedJson() throws Exception {
+        mockMvc.perform(post("/applications")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ not json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("MALFORMED_REQUEST"));
+    }
+
+    @Test
+    void returnsNotFoundForUnknownPath() throws Exception {
+        mockMvc.perform(delete("/does-not-exist"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.method").value("DELETE"));
+    }
+
+    static Map<String, Object> validRequest() {
+        return Map.of(
+                "applicant", Map.of(
+                        "name", "Asha", "age", 30, "monthlyIncome", 75000,
+                        "employmentType", "SALARIED", "creditScore", 780),
+                "loan", Map.of("amount", 500000, "tenureMonths", 36, "purpose", "PERSONAL"));
     }
 }

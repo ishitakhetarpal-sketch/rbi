@@ -11,12 +11,14 @@ import com.rbihub.loan.domain.model.LoanApplicationRecord;
 import com.rbihub.loan.dto.request.ApplicantDto;
 import com.rbihub.loan.dto.request.LoanApplicationRequest;
 import com.rbihub.loan.dto.request.LoanDto;
+import com.rbihub.loan.observability.LoanMetrics;
 import com.rbihub.loan.repository.LoanApplicationRepository;
 import com.rbihub.loan.service.impl.CreditScoreRiskBandClassifier;
 import com.rbihub.loan.service.impl.DefaultLoanEvaluationService;
 import com.rbihub.loan.service.impl.RuleBasedEligibilityEvaluator;
 import com.rbihub.loan.service.impl.StandardEmiCalculator;
 import com.rbihub.loan.service.impl.TieredInterestRateCalculator;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +46,8 @@ class DefaultLoanEvaluationServiceTest {
                 new CreditScoreRiskBandClassifier(props),
                 new TieredInterestRateCalculator(props),
                 new StandardEmiCalculator(),
-                repository
+                repository,
+                new LoanMetrics(new SimpleMeterRegistry())
         );
     }
 
