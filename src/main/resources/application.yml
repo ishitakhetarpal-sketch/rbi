@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: loan-evaluation-service
+  datasource:
+    url: jdbc:h2:mem:loandb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+logging:
+  level:
+    root: INFO
+    com.rbihub.loan: INFO
+
+lending:
+  base-interest-rate: 12.00
+  risk-premiums:
+    LOW: 0.00
+    MEDIUM: 1.50
+    HIGH: 3.00
+  employment-premiums:
+    SALARIED: 0.00
+    SELF_EMPLOYED: 1.00
+  loan-size:
+    threshold: 1000000
+    premium-above-threshold: 0.50
+  eligibility:
+    min-credit-score: 600
+    max-age-plus-tenure-years: 65
+    max-emi-to-income-ratio: 0.60
+    max-offer-emi-to-income-ratio: 0.50
+  risk-bands:
+    low-min-score: 750
+    medium-min-score: 650
+    high-min-score: 600
