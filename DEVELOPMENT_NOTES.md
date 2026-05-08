@@ -79,6 +79,30 @@ The HTTP layer is intentionally thin: validation is declarative
     rejected outcomes so reviewers can click "Try it out" and see realistic
     responses.
 
+11. **Production readiness via Spring Boot Actuator + Micrometer.**
+    - Health endpoints split into `liveness` and `readiness` so Kubernetes
+      probes can be wired without overlap.
+    - `/actuator/info` is populated by the Maven plugin's `build-info` goal so
+      a deployed instance reports the exact artifact and build time.
+    - Domain counters (`loan.decisions`, `loan.rejections`, `loan.amount`,
+      `loan.emi.ratio`, `loan.risk.classified`) are recorded after every
+      evaluation so dashboards and alerts can track approval-rate drift,
+      rejection-reason breakdowns and EMI-affordability distribution without
+      parsing logs. Metrics are tagged with `application` and emitted in
+      Prometheus format.
+    - HTTP latency SLO histograms (50/100/200/500/1000 ms buckets) are
+      published on `http.server.requests` for percentiles.
+    - `CorrelationIdFilter` accepts an `X-Correlation-Id` header (or generates
+      a UUID when absent), echoes it on the response and stamps it into
+      SLF4J's MDC so every log line during a request carries the same id —
+      this turns a forest of logs back into a request-keyed timeline.
+
+12. **Structured, branchable error responses.** The `ErrorResponse` shape
+    carries a stable, machine-readable `errorCode` enum that clients should
+    branch on, plus `traceId`, `method` and `rejectedValue` fields so
+    operators can correlate a 4xx/5xx response with the matching log line.
+    Field-level errors expose what was rejected, not just why.
+
 ## Trade-offs
 
 - **In-memory H2 vs a real RDBMS.** H2 keeps the project self-contained and
