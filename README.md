@@ -3,8 +3,6 @@
 A Spring Boot REST service that evaluates loan applications, generates a single
 offer based on the requested tenure and stores every decision for audit.
 
-The implementation follows the brief in `Java_Backend_TakeHome_Assignment (1).pdf`.
-
 ## Tech stack
 
 | Layer       | Choice                                |
